@@ -37,7 +37,7 @@ int ItoJson::JsonParseLiteral(JsonContext* tarContext, JsonValue* tarVal, char c
 	EXPECT(tarContext, cType);
 	if (cType == 'f')
 	{
-		if (tarContext->json != tarContext->jsonEnd|| ((tarContext->json) + 1) != tarContext->jsonEnd || ((tarContext->json) + 2) != tarContext->jsonEnd || ((tarContext->json) + 3) != tarContext->jsonEnd)
+		if (tarContext->json == tarContext->jsonEnd || ((tarContext->json) + 1) == tarContext->jsonEnd || ((tarContext->json) + 2) == tarContext->jsonEnd || ((tarContext->json) + 3) == tarContext->jsonEnd)
 			return JSON_PARSE_INVALID_VALUE;
 		if (*tarContext->json != 'a' || *((tarContext->json) + 1) != 'l' || *((tarContext->json) + 2) != 's' || *((tarContext->json) + 3) != 'e')
 			return JSON_PARSE_INVALID_VALUE;
@@ -46,7 +46,7 @@ int ItoJson::JsonParseLiteral(JsonContext* tarContext, JsonValue* tarVal, char c
 	}
 	else if (cType == 't')
 	{	
-		if (tarContext->json != tarContext->jsonEnd || ((tarContext->json) + 1) != tarContext->jsonEnd || ((tarContext->json) + 2) != tarContext->jsonEnd)
+		if (tarContext->json == tarContext->jsonEnd || ((tarContext->json) + 1) == tarContext->jsonEnd || ((tarContext->json) + 2) == tarContext->jsonEnd)
 			return JSON_PARSE_INVALID_VALUE;
 		if (*tarContext->json != 'r' || *((tarContext->json) + 1) != 'u' || *((tarContext->json) + 2) != 'e')
 			return JSON_PARSE_INVALID_VALUE;
@@ -55,7 +55,7 @@ int ItoJson::JsonParseLiteral(JsonContext* tarContext, JsonValue* tarVal, char c
 	}
 	else
 	{	
-		if (tarContext->json != tarContext->jsonEnd || ((tarContext->json) + 1) != tarContext->jsonEnd || ((tarContext->json) + 2) != tarContext->jsonEnd)
+		if (tarContext->json == tarContext->jsonEnd || ((tarContext->json) + 1) == tarContext->jsonEnd || ((tarContext->json) + 2) == tarContext->jsonEnd)
 			return JSON_PARSE_INVALID_VALUE;
 		if (*tarContext->json != 'u' || *((tarContext->json) + 1) != 'l' || *((tarContext->json) + 2) != 'l')
 			return JSON_PARSE_INVALID_VALUE;
@@ -79,39 +79,55 @@ int ItoJson::JsonParseNumber(JsonContext* tarContext, JsonValue* tarVal)
 	{
 		if (!((*end) >= '0' && (*end) <= '9'))
 			return JSON_PARSE_INVALID_VALUE;
-		for (end++; end != tarContext->jsonEnd && ((*end) >= '1' && (*end)) <= '9';end++);
+		for (end++; end != tarContext->jsonEnd && ((*end) >= '1' && (*end) <= '9');end++);
 	}
+
 	if (end != tarContext->jsonEnd && *end == '.')
 	{
 		end++;
-		if (end != tarContext->jsonEnd && (!((*end) >= '0' && (*end) <= '9')))
+		if (end == tarContext->jsonEnd || (!((*end) >= '0' && (*end) <= '9')))
 			return JSON_PARSE_INVALID_VALUE;
 
-		for (; end != tarContext->jsonEnd &&  ((*end) >= '0' && (*end)) <= '9'; end++);
+		for (end++; end != tarContext->jsonEnd && ((*end) >= '0' && (*end) <= '9'); end++);
 	}
 
 	if (end != tarContext->jsonEnd && (*end == 'e' || *end == 'E'))
 	{
 		end++;
 		if (end != tarContext->jsonEnd && (*end == '+' || *end == '-'))
-			for (end++; end != tarContext->jsonEnd && ((*end) >= '0' && (*end) <= '9'); end++);
+			end++;
 
 		if (end != tarContext->jsonEnd && (!((*end) >= '0' && (*end) <= '9')))
 			return JSON_PARSE_INVALID_VALUE;
 
-			for (end++; end != tarContext->jsonEnd && ((*end) >= '0' && (*end) <= '9'); end++);
+		for (end++; end != tarContext->jsonEnd && ((*end) >= '0' && (*end) <= '9'); end++);
 	}
+
+	if(end != tarContext->jsonEnd && (!((*end) >= '0' && (*end) <= '9')))
+		return JSON_PARSE_INVALID_VALUE;
 	//完成格式判断
 
 	//开始转换
 	string NumStr(tarContext->json, end);
 	istringstream tempIstrStream(NumStr);
 
-	double dNum;
-	tempIstrStream >> dNum;
-
 	if (tarContext->json == end)
 		return JSON_PARSE_INVALID_VALUE;
+
+	char* tempCA = new char[end - tarContext->json];
+	int numFlag = 0;
+	for (string::iterator tIter = tarContext->json; tIter != end; tIter++)
+	{
+		tempCA[numFlag] = *tIter;
+		numFlag = numFlag + 1;
+	}
+
+	double dNum = strtod(tempCA, nullptr);
+
+	if (fabs(dNum) == HUGE_VAL)
+		return JSON_PARSE_NUMBER_TOO_BIG;
+
+	//tempIstrStream >> dNum;
 
 	tarContext->json = end;
 	tarVal->type = JSON_NUMBER;

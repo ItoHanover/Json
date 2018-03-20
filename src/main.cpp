@@ -129,7 +129,7 @@ static void test_parse_number_too_big() {
 static void test_parse_missing_quotation_mark() {
 	TEST_ERROR(JSON_PARSE_MISS_QUOTATION_MARK, "\"");
 	TEST_ERROR(JSON_PARSE_MISS_QUOTATION_MARK, "\"abc");
-}
+} 
 
 static void test_parse_invalid_string_escape() {
 	TEST_ERROR(JSON_PARSE_INVALID_STRING_ESCAPE, "\"\\v\"");
