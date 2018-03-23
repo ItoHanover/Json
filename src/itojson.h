@@ -17,6 +17,8 @@ enum JsonType{ JSON_NULL, JSON_FALSE, JSON_TRUE, JSON_NUMBER, JSON_STRING, JSON_
 //返回JSON_PARSE_MISS_QUOTATION_MARK表示未以\"结尾，或在字符串中出现\0
 //返回JSON_PARSE_INVALID_STRING_ESCAPE表示错误出现不支持转义的字符
 //返回JSON_PARSE_INVALID_STRING_CHAR表示出现非法字符
+//返回JSON_PARSE_INVALID_UNICODE_SURROGATE表示出现UNICODE解析错误
+//返回JSON_PARSE_MISS_COMMA_OR_SQUARE_BRACKET表示解析数组遇到错误结尾
 */
 enum {
 	JSON_PARSE_OK = 0,
@@ -26,7 +28,10 @@ enum {
 	JSON_PARSE_NUMBER_TOO_BIG,
 	JSON_PARSE_MISS_QUOTATION_MARK,
 	JSON_PARSE_INVALID_STRING_ESCAPE,
-	JSON_PARSE_INVALID_STRING_CHAR
+	JSON_PARSE_INVALID_STRING_CHAR,
+	JSON_PARSE_INVALID_UNICODE_HEX,
+	JSON_PARSE_INVALID_UNICODE_SURROGATE,
+	JSON_PARSE_MISS_COMMA_OR_SQUARE_BRACKET
 };
 
 //
@@ -40,8 +45,12 @@ public:
 class JsonValue
 {
 public:
+	vector<JsonValue> arr;
+	
 	string str;
+	
 	double n;
+	
 	JsonType type;
 };
 
@@ -58,6 +67,14 @@ public:
 	void JsonSetNumber(JsonValue* tarVal);								//设置JSON VALUE的数值
 	void JsonSetString(JsonValue* tarVal);								//设置JSON VALUE的字符串
 
+	string::iterator JsonParseHex4(JsonContext* tarContext,string::iterator str, unsigned* u);
+	string JsonEncodeUtf8(string& tempStr, unsigned u);
+
+	size_t JsonGetArraySize(JsonValue* tarVal);
+
+	JsonValue& JsonGetArrayElement(JsonValue* tarVal,size_t iLocation);
+	vector<JsonValue>& JsonGetArray(JsonValue* tarVal);
+
 private:
 	void EXPECT(JsonContext* tarContext, char rVal) 
 	{
@@ -69,6 +86,7 @@ private:
 	int JsonParseValue(JsonContext* tarContext, JsonValue* tarVal);					//解析值
 	int JsonParseNumber(JsonContext* tarContext, JsonValue* tarVal);				//解析数字
 	int JsonParseStr(JsonContext* tarContext, JsonValue* tarVal);					//解析字符串
+	int JsonParseArray(JsonContext* tarContext, JsonValue* tarVal);					//解析数组
 
 };
 

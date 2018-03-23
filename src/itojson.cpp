@@ -14,6 +14,7 @@
 //};
 */
 
+//解析入口
 int ItoJson::JsonParse(JsonValue* tarVal, string JsonStr)
 {
 	JsonContext tempContext;
@@ -24,6 +25,7 @@ int ItoJson::JsonParse(JsonValue* tarVal, string JsonStr)
 	return JsonParseValue(&tempContext, tarVal);
 }
 
+//解析空格等空白字符
 void ItoJson::JsonParseWhitespace(JsonContext* tarContext)
 {
 	string::iterator jsonIter = tarContext->json;
@@ -32,6 +34,7 @@ void ItoJson::JsonParseWhitespace(JsonContext* tarContext)
 	tarContext->json = jsonIter;
 }
 
+//解析NULL与BOOL
 int ItoJson::JsonParseLiteral(JsonContext* tarContext, JsonValue* tarVal, char cType)
 {
 	EXPECT(tarContext, cType);
@@ -66,6 +69,7 @@ int ItoJson::JsonParseLiteral(JsonContext* tarContext, JsonValue* tarVal, char c
 
 }
 
+//解析数字
 int ItoJson::JsonParseNumber(JsonContext* tarContext, JsonValue* tarVal)
 {
 	string::iterator end;
@@ -103,10 +107,6 @@ int ItoJson::JsonParseNumber(JsonContext* tarContext, JsonValue* tarVal)
 		for (end++; end != tarContext->jsonEnd && ((*end) >= '0' && (*end) <= '9'); end++);
 	}
 
-	if(end != tarContext->jsonEnd && (!((*end) >= '0' && (*end) <= '9')))
-		return JSON_PARSE_INVALID_VALUE;
-	//完成格式判断
-
 	//开始转换
 	string NumStr(tarContext->json, end);
 	istringstream tempIstrStream(NumStr);
@@ -135,20 +135,69 @@ int ItoJson::JsonParseNumber(JsonContext* tarContext, JsonValue* tarVal)
 	return JSON_PARSE_OK;
 }
 
+string::iterator ItoJson::JsonParseHex4(JsonContext* tarContext ,string::iterator strIter, unsigned* u)
+{
+	*u = 0;
+	for (int i = 0; i < 4; i++) 
+	{
+		char ch = *strIter++;
+		*u <<= 4;
+		if (ch >= '0' && ch <= '9')  *u |= ch - '0';
+		else if (ch >= 'A' && ch <= 'F')  *u |= ch - ('A' - 10);
+		else if (ch >= 'a' && ch <= 'f')  *u |= ch - ('a' - 10);
+		else return tarContext->jsonEnd;
+	}
+	return strIter;
+}
+
+//解析Utf8
+string ItoJson::JsonEncodeUtf8(string& tempStr, unsigned u)
+{
+	if (u <= 0x7F)
+		tempStr.push_back(u & 0xFF);
+	else if (u <= 0x7FF) {
+		tempStr.push_back(0xC0 | ((u >> 6) & 0xFF));
+		tempStr.push_back(0x80 | (u & 0x3F));
+	}
+	else if (u <= 0xFFFF) {
+		tempStr.push_back(0xE0 | ((u >> 12) & 0xFF));
+		tempStr.push_back(0x80 | ((u >> 6) & 0x3F));
+		tempStr.push_back(0x80 | (u & 0x3F));
+	}
+	else {
+		assert(u <= 0x10FFFF);
+		tempStr.push_back(0xF0 | ((u >> 18) & 0xFF));
+		tempStr.push_back(0x80 | ((u >> 12) & 0x3F));
+		tempStr.push_back(0x80 | ((u >> 6) & 0x3F));
+		tempStr.push_back(0x80 | (u & 0x3F));
+	}
+	return tempStr;
+}
+
+//解析字符串
 int ItoJson::JsonParseStr(JsonContext* tarContext, JsonValue* tarVal)
 {
+
 	tarVal->str.clear();
 	EXPECT(tarContext, '\"');
+	unsigned u;
+	unsigned u2;
 	string::iterator endIter = tarContext->json;
 	string tempStr = "";
 	for (;;)
 	{
-		if(endIter == tarContext->jsonEnd)
+		if (endIter == tarContext->jsonEnd)
+		{
+			tarContext->json = endIter;
 			return JSON_PARSE_MISS_QUOTATION_MARK;
-		switch (*endIter++)
+		}
+		char tempCh =  *endIter++;
+		switch (tempCh)
 		{
 		case '\"':
 			tarVal->str = tempStr;
+			tarContext->json = endIter;
+			tarVal->type = JSON_STRING;
 			return JSON_PARSE_OK;
 			break;
 		case '\\' :
@@ -157,43 +206,121 @@ int ItoJson::JsonParseStr(JsonContext* tarContext, JsonValue* tarVal)
 			switch (*endIter++) 
 			{
 			case '\"':
-				tempStr.insert(tempStr.begin(), '\"');
+				tempStr.push_back('\"');
 				break;
 			case '\\':
-				tempStr.insert(tempStr.begin(), '\\');
+				tempStr.push_back('\\');
+				break;
 			case '/':
-				tempStr.insert(tempStr.begin(), '/');
+				tempStr.push_back('/');
 				break;
 			case 'b':
-				tempStr.insert(tempStr.begin(), '\b');
+				tempStr.push_back('\b');
 				break;
 			case 'n':
-				tempStr.insert(tempStr.begin(), '\n');
+				tempStr.push_back('\n');
 				break;
 			case 'r':
-				tempStr.insert(tempStr.begin(), '\r');
+				tempStr.push_back('\r');
 				break;
 			case 't':
-				tempStr.insert(tempStr.begin(), '\t');
+				tempStr.push_back('\t');
 				break;
 			case 'f':
-				tempStr.insert(tempStr.begin(), '\f');
+				tempStr.push_back('\f');
+				break;
+			case 'u':
+				if ((endIter = JsonParseHex4(tarContext,endIter, &u)) == tarContext->jsonEnd)
+				{
+					tarContext->json = endIter;
+					return JSON_PARSE_INVALID_UNICODE_HEX;
+				}
+				if (u >= 0xD800 && u <= 0xDBFF) { /* surrogate pair */
+					if (endIter == tarContext->jsonEnd || *endIter++ != '\\')
+					{
+						tarContext->json = endIter;
+						return JSON_PARSE_INVALID_UNICODE_SURROGATE;
+					}
+					if (endIter == tarContext->jsonEnd || *endIter++ != 'u')
+					{
+						tarContext->json = endIter;
+						return JSON_PARSE_INVALID_UNICODE_SURROGATE;
+					}
+					if (endIter == tarContext->jsonEnd || (endIter = JsonParseHex4(tarContext,endIter, &u2)) == tarContext->jsonEnd)
+					{
+						tarContext->json = endIter;
+						return JSON_PARSE_INVALID_UNICODE_HEX;
+					}
+					if (u2 < 0xDC00 || u2 > 0xDFFF)
+					{
+						tarContext->json = endIter;
+						return JSON_PARSE_INVALID_UNICODE_SURROGATE;
+					}
+					u = (((u - 0xD800) << 10) | (u2 - 0xDC00)) + 0x10000;
+				}
+				JsonEncodeUtf8(tempStr, u);
 				break;
 			default:
+				tarContext->json = endIter;
 				return JSON_PARSE_INVALID_STRING_ESCAPE;
 			}
 			break;
 		default:
-			if(endIter == tarContext->jsonEnd)
+			if (endIter == tarContext->jsonEnd)
+			{
+				tarContext->json = endIter;
 				return JSON_PARSE_MISS_QUOTATION_MARK;
+			}
 			if ((unsigned char)*endIter < 0x20)
 			{
+				tarContext->json = endIter;
 				return JSON_PARSE_INVALID_STRING_CHAR;
 			}
-			tempStr.insert(tempStr.begin(), *endIter);
+			tempStr.push_back(tempCh);
 			break;
 		}
 	}
+}
+
+//解析数组
+int ItoJson::JsonParseArray(JsonContext* tarContext, JsonValue* tarVal)
+{
+	int ret;
+	EXPECT(tarContext, '[');
+	JsonParseWhitespace(tarContext);
+	if (tarContext->json != tarContext->jsonEnd && *tarContext->json == ']')
+	{
+		tarContext->json++;
+		tarVal->type = JSON_ARRAY;
+		return JSON_PARSE_OK;
+	}
+
+	for (;;)
+	{
+		JsonValue tempVal;
+		if ((ret = JsonParseValue(tarContext, &tempVal)) != JSON_PARSE_OK)
+			break;
+		tarVal->arr.push_back(tempVal);
+		JsonParseWhitespace(tarContext);
+		if (tarContext->json != tarContext->jsonEnd && *tarContext->json == ',')
+		{			
+			tarContext->json++;
+			JsonParseWhitespace(tarContext);
+		}
+		else if (tarContext->json != tarContext->jsonEnd && *tarContext->json == ']')
+		{
+			tarContext->json++;
+			tarVal->type = JSON_ARRAY;
+			return JSON_PARSE_OK;
+		}
+		else
+		{
+			ret = JSON_PARSE_MISS_COMMA_OR_SQUARE_BRACKET;
+			break;
+		}
+	}
+
+	return ret;
 }
 
 double ItoJson::JsonGetNumber(const JsonValue* tarVal)
@@ -214,6 +341,25 @@ string ItoJson::JsonGetString(const JsonValue* tarVal)
 	return tarVal->str;
 }
 
+size_t ItoJson::JsonGetArraySize(JsonValue* tarVal)
+{
+	assert(tarVal != NULL && tarVal->type == JSON_ARRAY);
+	return tarVal->arr.size();
+}
+
+JsonValue& ItoJson::JsonGetArrayElement(JsonValue* tarVal, size_t iLocation)
+{
+	assert(tarVal != NULL && tarVal->type == JSON_ARRAY);
+	assert(iLocation < tarVal->arr.size());
+	return tarVal->arr[iLocation];
+}
+
+vector<JsonValue>& JsonFetArray(JsonValue* tarVal)
+{
+	return tarVal->arr;
+}
+
+//遇到字符后 根据首字符的不同调用对应解析函数。
 int ItoJson::JsonParseValue(JsonContext* tarContext, JsonValue* tarVal)
 {
 	if(tarContext->json == tarContext->jsonEnd)
@@ -223,6 +369,7 @@ int ItoJson::JsonParseValue(JsonContext* tarContext, JsonValue* tarVal)
 	case 'f':	return JsonParseLiteral(tarContext, tarVal, 'f');
 	case 't':	return JsonParseLiteral(tarContext, tarVal, 't');
 	case '"':	return JsonParseStr(tarContext, tarVal);
+	case '[':  return JsonParseArray(tarContext, tarVal);
 	default:	return JsonParseNumber(tarContext, tarVal);
 	}
 }
