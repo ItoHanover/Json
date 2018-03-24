@@ -129,41 +129,103 @@ static void test_parse_string() {
 
 static void test_parse_array() {
 	size_t i, j;
-	JsonValue v;
-	ItoJson* itojson = new ItoJson;
-	EXPECT_EQ_INT(JSON_PARSE_OK, itojson->JsonParse(&v, "[ ]"));
-	EXPECT_EQ_INT(JSON_ARRAY, itojson->JsonGetType(&v));
-	EXPECT_EQ_SIZE_T(0, itojson->JsonGetArraySize(&v));
-	delete itojson;
+	JsonValue* v;
+	ItoJson itojson;
 
-	itojson = new ItoJson;
-	EXPECT_EQ_INT(JSON_PARSE_OK, itojson->JsonParse(&v, "[ null , false , true , 123 , \"abc\" ]"));
-	EXPECT_EQ_INT(JSON_ARRAY, itojson->JsonGetType(&v));
-	EXPECT_EQ_SIZE_T(5, itojson->JsonGetArraySize(&v));
-	EXPECT_EQ_INT(JSON_NULL, itojson->JsonGetType(&itojson->JsonGetArrayElement(&v, 0)));
-	EXPECT_EQ_INT(JSON_FALSE, itojson->JsonGetType(&itojson->JsonGetArrayElement(&v, 1)));
-	EXPECT_EQ_INT(JSON_TRUE, itojson->JsonGetType(&itojson->JsonGetArrayElement(&v, 2)));
-	EXPECT_EQ_INT(JSON_NUMBER, itojson->JsonGetType(&itojson->JsonGetArrayElement(&v, 3)));
-	EXPECT_EQ_INT(JSON_STRING, itojson->JsonGetType(&itojson->JsonGetArrayElement(&v, 4)));
-	EXPECT_EQ_DOUBLE(123.0, itojson->JsonGetNumber(&itojson->JsonGetArrayElement(&v, 3)));
-	EXPECT_EQ_STRING("abc", getPtrTest(itojson->JsonGetString(&itojson->JsonGetArrayElement(&v, 4))), itojson->JsonGetArrayElement(&v, 4).str.length());
-	delete itojson;
+	v = new JsonValue;
+	EXPECT_EQ_INT(JSON_PARSE_OK, itojson.JsonParse(v, "[ ]"));
+	EXPECT_EQ_INT(JSON_ARRAY, itojson.JsonGetType(v));
+	EXPECT_EQ_SIZE_T(0, itojson.JsonGetArraySize(v));
+	delete v;
 
-	itojson = new ItoJson;
-	EXPECT_EQ_INT(JSON_PARSE_OK, itojson->JsonParse(&v, "[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]"));
-	EXPECT_EQ_INT(JSON_ARRAY, itojson->JsonGetType(&v));
-	EXPECT_EQ_SIZE_T(4, itojson->JsonGetArraySize(&v));
+	v = new JsonValue;
+	EXPECT_EQ_INT(JSON_PARSE_OK, itojson.JsonParse(v, "[ null , false , true , 123 , \"abc\" ]"));
+	EXPECT_EQ_INT(JSON_ARRAY, itojson.JsonGetType(v));
+	EXPECT_EQ_SIZE_T(5, itojson.JsonGetArraySize(v));
+	EXPECT_EQ_INT(JSON_NULL, itojson.JsonGetType(&itojson.JsonGetArrayElement(v, 0)));
+	EXPECT_EQ_INT(JSON_FALSE, itojson.JsonGetType(&itojson.JsonGetArrayElement(v, 1)));
+	EXPECT_EQ_INT(JSON_TRUE, itojson.JsonGetType(&itojson.JsonGetArrayElement(v, 2)));
+	EXPECT_EQ_INT(JSON_NUMBER, itojson.JsonGetType(&itojson.JsonGetArrayElement(v, 3)));
+	EXPECT_EQ_INT(JSON_STRING, itojson.JsonGetType(&itojson.JsonGetArrayElement(v, 4)));
+	EXPECT_EQ_DOUBLE(123.0, itojson.JsonGetNumber(&itojson.JsonGetArrayElement(v, 3)));
+	EXPECT_EQ_STRING("abc", getPtrTest(itojson.JsonGetString(&itojson.JsonGetArrayElement(v, 4))), itojson.JsonGetArrayElement(v, 4).str.length());
+	delete v;
+
+	v = new JsonValue;
+	EXPECT_EQ_INT(JSON_PARSE_OK, itojson.JsonParse(v, "[ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ]"));
+	EXPECT_EQ_INT(JSON_ARRAY, itojson.JsonGetType(v));
+	EXPECT_EQ_SIZE_T(4, itojson.JsonGetArraySize(v));
 	for (i = 0; i < 4; i++) {
-		JsonValue* a = &(itojson->JsonGetArrayElement(&v, i));
-		EXPECT_EQ_INT(JSON_ARRAY, itojson->JsonGetType(a));
-		EXPECT_EQ_SIZE_T(i, itojson->JsonGetArraySize(a));
+		JsonValue* a = &(itojson.JsonGetArrayElement(v, i));
+		EXPECT_EQ_INT(JSON_ARRAY, itojson.JsonGetType(a));
+		EXPECT_EQ_SIZE_T(i, itojson.JsonGetArraySize(a));
 		for (j = 0; j < i; j++) {
-			JsonValue* e = &(itojson->JsonGetArrayElement(a, j));
-			EXPECT_EQ_INT(JSON_NUMBER, itojson->JsonGetType(e));
-			EXPECT_EQ_DOUBLE((double)j, itojson->JsonGetNumber(e));
+			JsonValue* e = &(itojson.JsonGetArrayElement(a, j));
+			EXPECT_EQ_INT(JSON_NUMBER, itojson.JsonGetType(e));
+			EXPECT_EQ_DOUBLE((double)j, itojson.JsonGetNumber(e));
 		}
 	}
-	delete itojson;
+	delete v;
+}
+
+static void test_parse_object() {
+	JsonValue* v;
+	size_t i;
+	ItoJson itojson;
+
+	v = new JsonValue;
+	EXPECT_EQ_INT(JSON_PARSE_OK, itojson.JsonParse(v, " { } "));
+	EXPECT_EQ_INT(JSON_OBJECT, itojson.JsonGetType(v));
+	EXPECT_EQ_SIZE_T(0, itojson.JsonGetObjectSize(v));
+	delete v;
+
+	v = new JsonValue;
+	EXPECT_EQ_INT(JSON_PARSE_OK, itojson.JsonParse(v,
+		" { "
+		"\"n\" : null , "
+		"\"f\" : false , "
+		"\"t\" : true , "
+		"\"i\" : 123 , "
+		"\"s\" : \"abc\", "
+		"\"a\" : [ 1, 2, 3 ],"
+		"\"o\" : { \"1\" : 1, \"2\" : 2, \"3\" : 3 }"
+		" } "
+	));
+	EXPECT_EQ_INT(JSON_OBJECT, itojson.JsonGetType(v));
+	EXPECT_EQ_SIZE_T(7, itojson.JsonGetObjectSize(v));
+	EXPECT_EQ_STRING("n", getPtrTest(itojson.JsonGetObjectKey(v, 0)), itojson.JsonGetObjectKeyLength(v, 0));
+	EXPECT_EQ_INT(JSON_NULL, itojson.JsonGetType(&itojson.JsonGetObjectValue(v, 0)));
+	EXPECT_EQ_STRING("f", getPtrTest(itojson.JsonGetObjectKey(v, 1)), itojson.JsonGetObjectKeyLength(v, 1));
+	EXPECT_EQ_INT(JSON_FALSE, itojson.JsonGetType(&itojson.JsonGetObjectValue(v, 1)));
+	EXPECT_EQ_STRING("t", getPtrTest(itojson.JsonGetObjectKey(v, 2)), itojson.JsonGetObjectKeyLength(v, 2));
+	EXPECT_EQ_INT(JSON_TRUE, itojson.JsonGetType(&itojson.JsonGetObjectValue(v, 2)));
+	EXPECT_EQ_STRING("i", getPtrTest(itojson.JsonGetObjectKey(v, 3)), itojson.JsonGetObjectKeyLength(v, 3));
+	EXPECT_EQ_INT(JSON_NUMBER, itojson.JsonGetType(&itojson.JsonGetObjectValue(v, 3)));
+	EXPECT_EQ_DOUBLE(123.0, itojson.JsonGetNumber(&itojson.JsonGetObjectValue(v, 3)));
+	EXPECT_EQ_STRING("s", getPtrTest(itojson.JsonGetObjectKey(v, 4)), itojson.JsonGetObjectKeyLength(v, 4));
+	EXPECT_EQ_INT(JSON_STRING, itojson.JsonGetType(&itojson.JsonGetObjectValue(v, 4)));
+	EXPECT_EQ_STRING("abc", getPtrTest(itojson.JsonGetString(&(itojson.JsonGetObjectValue(v, 4)))), itojson.JsonGetObjectValue(v, 4).str.length());
+	EXPECT_EQ_STRING("a", getPtrTest(itojson.JsonGetObjectKey(v, 5)), itojson.JsonGetObjectKeyLength(v, 5));
+	EXPECT_EQ_INT(JSON_ARRAY, itojson.JsonGetType(&itojson.JsonGetObjectValue(v, 5)));
+	EXPECT_EQ_SIZE_T(3, itojson.JsonGetArraySize(&itojson.JsonGetObjectValue(v, 5)));
+	for (i = 0; i < 3; i++) {
+		JsonValue* e = &itojson.JsonGetArrayElement(&itojson.JsonGetObjectValue(v, 5), i);
+		EXPECT_EQ_INT(JSON_NUMBER, itojson.JsonGetType(e));
+		EXPECT_EQ_DOUBLE(i + 1.0, itojson.JsonGetNumber(e));
+	}
+	EXPECT_EQ_STRING("o", getPtrTest(itojson.JsonGetObjectKey(v, 6)), itojson.JsonGetObjectKeyLength(v, 6));
+	{
+		JsonValue* o = &itojson.JsonGetObjectValue(v, 6);
+		EXPECT_EQ_INT(JSON_OBJECT, itojson.JsonGetType(o));
+		for (i = 0; i < 3; i++) {
+			JsonValue* ov = &itojson.JsonGetObjectValue(o, i);
+			EXPECT_TRUE('1' + i == itojson.JsonGetObjectKey(o, i)[0]);
+			EXPECT_EQ_SIZE_T(1, itojson.JsonGetObjectKeyLength(o, i));
+			EXPECT_EQ_INT(JSON_NUMBER, itojson.JsonGetType(ov));
+			EXPECT_EQ_DOUBLE(i + 1.0, itojson.JsonGetNumber(ov));
+		}
+	}
+	delete v;
 }
 
 #define TEST_ERROR(error, json)\
@@ -257,6 +319,29 @@ static void test_parse_miss_comma_or_square_bracket() {
 	TEST_ERROR(JSON_PARSE_MISS_COMMA_OR_SQUARE_BRACKET, "[[]");
 }
 
+static void test_parse_miss_key() {
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{1:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{true:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{false:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{null:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{[]:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{{}:1,");
+	TEST_ERROR(JSON_PARSE_MISS_KEY, "{\"a\":1,");
+}
+
+static void test_parse_miss_colon() {
+	TEST_ERROR(JSON_PARSE_MISS_COLON, "{\"a\"}");
+	TEST_ERROR(JSON_PARSE_MISS_COLON, "{\"a\",\"b\"}");
+}
+
+static void test_parse_miss_comma_or_curly_bracket() {
+	TEST_ERROR(JSON_PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":1");
+	TEST_ERROR(JSON_PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":1]");
+	TEST_ERROR(JSON_PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":1 \"b\"");
+	TEST_ERROR(JSON_PARSE_MISS_COMMA_OR_CURLY_BRACKET, "{\"a\":{}");
+}
+
 static void test_parse() {
 	test_parse_null();
 	test_parse_true();
@@ -264,6 +349,7 @@ static void test_parse() {
 	test_parse_number();
 	test_parse_string();
 	test_parse_array();
+	test_parse_object();
 
 	test_parse_expect_value();
 	test_parse_invalid_value();
@@ -277,7 +363,10 @@ static void test_parse() {
 	test_parse_invalid_unicode_hex();
 	test_parse_invalid_unicode_surrogate();
 
-	//test_parse_miss_comma_or_square_bracket();
+	test_parse_miss_comma_or_square_bracket();
+	test_parse_miss_key();
+	test_parse_miss_colon();
+	test_parse_miss_comma_or_curly_bracket();
 }
 
 int main() {

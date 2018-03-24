@@ -286,6 +286,7 @@ int ItoJson::JsonParseStr(JsonContext* tarContext, JsonValue* tarVal)
 int ItoJson::JsonParseArray(JsonContext* tarContext, JsonValue* tarVal)
 {
 	int ret;
+	vector<JsonValue> tarVector;
 	EXPECT(tarContext, '[');
 	JsonParseWhitespace(tarContext);
 	if (tarContext->json != tarContext->jsonEnd && *tarContext->json == ']')
@@ -300,7 +301,7 @@ int ItoJson::JsonParseArray(JsonContext* tarContext, JsonValue* tarVal)
 		JsonValue tempVal;
 		if ((ret = JsonParseValue(tarContext, &tempVal)) != JSON_PARSE_OK)
 			break;
-		tarVal->arr.push_back(tempVal);
+		tarVector.push_back(tempVal);
 		JsonParseWhitespace(tarContext);
 		if (tarContext->json != tarContext->jsonEnd && *tarContext->json == ',')
 		{			
@@ -311,6 +312,7 @@ int ItoJson::JsonParseArray(JsonContext* tarContext, JsonValue* tarVal)
 		{
 			tarContext->json++;
 			tarVal->type = JSON_ARRAY;
+			tarVal->arr = tarVector;
 			return JSON_PARSE_OK;
 		}
 		else
@@ -319,7 +321,83 @@ int ItoJson::JsonParseArray(JsonContext* tarContext, JsonValue* tarVal)
 			break;
 		}
 	}
+	return ret;
+}
 
+int ItoJson::JsonParseObject(JsonContext* tarContext, JsonValue* tarVal)
+{
+	vector<JsonMember> tempVJM;
+	JsonMember m;
+	int ret;
+	EXPECT(tarContext, '{');
+	JsonParseWhitespace(tarContext);
+
+	if (tarContext->json != tarContext->jsonEnd && *tarContext->json == '}')
+	{
+		tarContext->json++;
+		tarVal->type = JSON_OBJECT;
+		return JSON_PARSE_OK;
+	}
+
+	m.key = "";
+
+	for (;;)
+	{
+		JsonValue tempJV;
+		//解析KEY
+		if (tarContext->json == tarContext->jsonEnd || *tarContext->json != '"')
+		{
+			ret = JSON_PARSE_MISS_KEY;
+			break;
+		}
+		if ((ret = JsonParseStr(tarContext, &tempJV)) != JSON_PARSE_OK)
+			break;
+		m.key = tempJV.str;
+		
+		//判断是否存在冒号
+		JsonParseWhitespace(tarContext);
+		if (tarContext->json == tarContext->jsonEnd || *tarContext->json != ':') 
+		{
+			ret = JSON_PARSE_MISS_COLON;
+			break;
+		}
+		tarContext->json++;
+		JsonParseWhitespace(tarContext);
+
+		//解析Value
+		if ((ret = JsonParseValue(tarContext, &m.mVal)) != JSON_PARSE_OK)
+			break;
+		tempVJM.push_back(m);
+		m.key = "";//将m压入临时vector后要恢复初始化状态
+
+		JsonParseWhitespace(tarContext);
+
+		//完成一个部分的解析 开始检测接下来是','还是'}'
+		//','则继续解析 '}'则完成解析
+		//否则结束解析 报错
+		if (tarContext->json != tarContext->jsonEnd && *tarContext->json == ',')
+		{
+			tarContext->json++;
+			JsonParseWhitespace(tarContext);
+		}
+		else if (tarContext->json != tarContext->jsonEnd && *tarContext->json == '}')
+		{
+			tarContext->json++;
+			for (auto x : tempVJM)
+			{
+				tarVal->member.push_back(x);
+			}
+			tarVal->type = JSON_OBJECT;
+			return JSON_PARSE_OK;
+		}
+		else
+		{
+			ret = JSON_PARSE_MISS_COMMA_OR_CURLY_BRACKET;
+			break;
+		}
+		
+		
+	}
 	return ret;
 }
 
@@ -354,9 +432,37 @@ JsonValue& ItoJson::JsonGetArrayElement(JsonValue* tarVal, size_t iLocation)
 	return tarVal->arr[iLocation];
 }
 
-vector<JsonValue>& JsonFetArray(JsonValue* tarVal)
+vector<JsonValue>& ItoJson::JsonGetArray(JsonValue* tarVal)
 {
 	return tarVal->arr;
+}
+
+//获取对象v的Size
+size_t ItoJson::JsonGetObjectSize(const JsonValue* tarVal)
+{
+	assert(tarVal != NULL && tarVal->type == JSON_OBJECT);
+	return tarVal->member.size();
+}
+//获取对象v的Key
+string ItoJson::JsonGetObjectKey(const JsonValue* tarVal, size_t index)
+{
+	assert(tarVal != NULL && tarVal->type == JSON_OBJECT);
+	assert(index < tarVal->member.size());
+	return tarVal->member[index].key;
+}
+//获取对象v的Key的Length
+size_t ItoJson::JsonGetObjectKeyLength(const JsonValue* tarVal, size_t index)
+{
+	assert(tarVal != NULL && tarVal->type == JSON_OBJECT);
+	assert(index < tarVal->member.size());
+	return tarVal->member[index].key.length();
+}
+//获取对象v
+JsonValue& ItoJson::JsonGetObjectValue(JsonValue* tarVal, size_t index)
+{
+	assert(tarVal != NULL && tarVal->type == JSON_OBJECT);
+	assert(index < tarVal->member.size());
+	return tarVal->member[index].mVal;
 }
 
 //遇到字符后 根据首字符的不同调用对应解析函数。
@@ -369,7 +475,8 @@ int ItoJson::JsonParseValue(JsonContext* tarContext, JsonValue* tarVal)
 	case 'f':	return JsonParseLiteral(tarContext, tarVal, 'f');
 	case 't':	return JsonParseLiteral(tarContext, tarVal, 't');
 	case '"':	return JsonParseStr(tarContext, tarVal);
-	case '[':  return JsonParseArray(tarContext, tarVal);
+	case '[':	return JsonParseArray(tarContext, tarVal);
+	case '{':	return JsonParseObject(tarContext,tarVal);
 	default:	return JsonParseNumber(tarContext, tarVal);
 	}
 }

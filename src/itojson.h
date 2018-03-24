@@ -31,7 +31,10 @@ enum {
 	JSON_PARSE_INVALID_STRING_CHAR,
 	JSON_PARSE_INVALID_UNICODE_HEX,
 	JSON_PARSE_INVALID_UNICODE_SURROGATE,
-	JSON_PARSE_MISS_COMMA_OR_SQUARE_BRACKET
+	JSON_PARSE_MISS_COMMA_OR_SQUARE_BRACKET,
+	JSON_PARSE_MISS_KEY,
+	JSON_PARSE_MISS_COLON,
+	JSON_PARSE_MISS_COMMA_OR_CURLY_BRACKET
 };
 
 //
@@ -42,16 +45,27 @@ public:
 	string::iterator jsonEnd;
 };
 
+class JsonMember;
+
 class JsonValue
 {
 public:
 	vector<JsonValue> arr;
-	
+
+	vector<JsonMember> member;
+
 	string str;
 	
 	double n;
 	
 	JsonType type;
+};
+
+class JsonMember
+{
+public:
+	string key;
+	JsonValue mVal;
 };
 
 class ItoJson
@@ -70,10 +84,14 @@ public:
 	string::iterator JsonParseHex4(JsonContext* tarContext,string::iterator str, unsigned* u);
 	string JsonEncodeUtf8(string& tempStr, unsigned u);
 
-	size_t JsonGetArraySize(JsonValue* tarVal);
+	size_t JsonGetArraySize(JsonValue* tarVal);							//返回数组大小
+	JsonValue& JsonGetArrayElement(JsonValue* tarVal,size_t iLocation);	//获取数组形式的JSON VALUE的第iLocation个元素
+	vector<JsonValue>& JsonGetArray(JsonValue* tarVal);					//获取数组形式的JSON VALUE
 
-	JsonValue& JsonGetArrayElement(JsonValue* tarVal,size_t iLocation);
-	vector<JsonValue>& JsonGetArray(JsonValue* tarVal);
+	size_t JsonGetObjectSize(const JsonValue* tarVal);						//获取对象v的Size
+	string JsonGetObjectKey(const JsonValue* tarVal, size_t index);			//获取对象v的Key
+	size_t JsonGetObjectKeyLength(const JsonValue* tarVal, size_t index);	//获取对象v的Key的Length
+	JsonValue& JsonGetObjectValue(JsonValue* tarVal, size_t index);	//获取对象v
 
 private:
 	void EXPECT(JsonContext* tarContext, char rVal) 
@@ -87,7 +105,7 @@ private:
 	int JsonParseNumber(JsonContext* tarContext, JsonValue* tarVal);				//解析数字
 	int JsonParseStr(JsonContext* tarContext, JsonValue* tarVal);					//解析字符串
 	int JsonParseArray(JsonContext* tarContext, JsonValue* tarVal);					//解析数组
-
+	int JsonParseObject(JsonContext* tarContext, JsonValue* tarVal);				//解析对象
 };
 
 #endif /* ITOJSON_H__ */
