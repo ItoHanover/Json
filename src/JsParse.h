@@ -38,7 +38,7 @@ private:
 	RETURN_FLAG JsonParseObject(string::iterator& startIter, string::iterator endIter, shared_ptr<BaseJs>& resVal);					//½âÎö¶ÔÏó
 
 private:
-	string::iterator JsonParseHex4(string::iterator& startIter, string::iterator& endIter, string::iterator strIter, unsigned* u);
+	string::iterator JsonParseHex4(string::iterator& startIter, string::iterator endIter, string::iterator strIter, unsigned* u);
 	string JsonEncodeUtf8(string& tempStr, unsigned u);
 
 };

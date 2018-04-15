@@ -12,7 +12,7 @@ RETURN_FLAG JsParse::JsonParse(shared_ptr<BaseJs>& resVal,string& tarStr)
 void JsParse::JsonParseWhitespace(string::iterator& startIter, string::iterator endIter)
 {
 	string::iterator tempIter = startIter;
-	for (; startIter != endIter && (*tempIter == ' ' || *tempIter == '\t' || *tempIter == '\n' || *tempIter == '\r'); tempIter++);
+	for (; tempIter != endIter && (*tempIter == ' ' || *tempIter == '\t' || *tempIter == '\n' || *tempIter == '\r'); tempIter++);
 	startIter = tempIter;
 }
 
@@ -138,7 +138,7 @@ RETURN_FLAG JsParse::JsonParseNumber(string::iterator& startIter, string::iterat
 	return JSON_PARSE_OK;
 }
 
-string::iterator JsParse::JsonParseHex4(string::iterator& startIter, string::iterator& endIter, string::iterator strIter, unsigned* u)
+string::iterator JsParse::JsonParseHex4(string::iterator& startIter, string::iterator endIter, string::iterator strIter, unsigned* u)
 {
 	*u = 0;
 	for (int i = 0; i < 4; i++)
@@ -198,6 +198,7 @@ RETURN_FLAG JsParse::JsonParseStr(string::iterator& startIter, string::iterator 
 		switch (tempCh)
 		{
 		case '\"':
+			resVal = make_shared<JsString>();
 			resVal->SetValue(tempStr);
 			startIter = end;
 			resVal->SetType(JVT_STRING);
@@ -304,7 +305,7 @@ RETURN_FLAG JsParse::JsonParseArray(string::iterator& startIter, string::iterato
 
 	for (;;)
 	{
-		shared_ptr<BaseJs> tempVal = make_shared<BaseJs>();
+		shared_ptr<BaseJs> tempVal;
 		if ((ret = JsonParseValue(startIter,endIter, tempVal)) != JSON_PARSE_OK)
 			break;
 		tarVector.push_back(*tempVal);
@@ -342,6 +343,7 @@ RETURN_FLAG JsParse::JsonParseObject(string::iterator& startIter, string::iterat
 	if (startIter != endIter && *startIter == '}')
 	{
 		startIter++;
+		resVal = make_shared<JsObject>();
 		resVal->SetType(JVT_OBJECT);
 		return JSON_PARSE_OK;
 	}
@@ -350,8 +352,8 @@ RETURN_FLAG JsParse::JsonParseObject(string::iterator& startIter, string::iterat
 
 	for (;;)
 	{
-		shared_ptr<BaseJs> tempKey = make_shared<BaseJs>();
-		shared_ptr<BaseJs> tempVal = make_shared<BaseJs>();
+		shared_ptr<BaseJs> tempKey;
+		shared_ptr<BaseJs> tempVal;
 		//Ω‚ŒˆKEY
 		if (startIter == endIter || *startIter != '"')
 		{
@@ -392,6 +394,7 @@ RETURN_FLAG JsParse::JsonParseObject(string::iterator& startIter, string::iterat
 		else if (startIter != endIter && *startIter == '}')
 		{
 			startIter++;
+			resVal = make_shared<JsObject>();
 			resVal->SetValue(tempVJM);
 			resVal->SetType(JVT_OBJECT);
 			return JSON_PARSE_OK;
